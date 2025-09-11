@@ -43,14 +43,17 @@ def create_app(test_config=None):
                 db = get_db()
                 file_bytes = file.read()
                 db.cursor.execute("INSERT INTO image (image_data) VALUES (?)" \
-                           , file_bytes)
-                return jsonify({'message': 'You have uploaded an image succesfully!'})
+                           , (file_bytes))
+                db.commit()
+                return jsonify({'message': 'You have uploaded an image succesfully!'}), 201
         return jsonify({"error": "Invalid file type"}), 400
 
     # serve the images here
     @app.route('/api/images/<id>/<name>')
-    def get_image(id):
-        return
+    def get_image(id, name):
+        db = get_db()
+        image_data = db.cursor.execute("SELECT image_data FROM images WHERE id=id")
+        return jsonify({'message':'Data Downloaded'})
 
     from . import db
     db.init_app(app)
