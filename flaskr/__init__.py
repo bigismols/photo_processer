@@ -1,8 +1,7 @@
 import os
-from flask import Flask,flash, request, redirect, url_for \
-    , render_template, send_from_directory, jsonify
-
+from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
+from db import get_db
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -39,12 +38,19 @@ def create_app(test_config=None):
             if 'file' not in request.files:
                 return jsonify({"error": "No file uploaded"}), 400
             file = request.files['file']
-            if file.filename == '':
-                return jsonify({"error": "No file selected"}), 400
             if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                return jsonify({"url": url_for('download_file', name=filename, _external=True)}), 201
+                # insert file saving to db logic here
+                db = get_db()
+                file_bytes = file.read()
+                db.cursor.execute("INSERT INTO image (image_data) VALUES (?)" \
+                           , file_bytes)
+                return jsonify({'message': 'You have uploaded an image succesfully!'})
         return jsonify({"error": "Invalid file type"}), 400
+
+    # serve the images here
+    @app.route('/api/images/<id>/<name>')
+    def get_image(id):
+        return
 
     from . import db
     db.init_app(app)
