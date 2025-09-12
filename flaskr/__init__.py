@@ -1,7 +1,7 @@
 import os
 from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
-from db import get_db
+from flaskr import db
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -40,7 +40,7 @@ def create_app(test_config=None):
             file = request.files['file']
             if file and allowed_file(file.filename):
                 # insert file saving to db logic here
-                db = get_db()
+                db = db.get_db()
                 file_bytes = file.read()
                 db.cursor.execute("INSERT INTO image (image_data) VALUES (?)" \
                            , (file_bytes))
@@ -51,7 +51,7 @@ def create_app(test_config=None):
     # serve the images here
     @app.route('/api/images/<id>/<name>')
     def get_image(id, name):
-        db = get_db()
+        db = db.get_db()
         image_data = db.cursor.execute("SELECT image_data FROM images WHERE id=id")
         return jsonify({'message':'Data Downloaded'})
 
