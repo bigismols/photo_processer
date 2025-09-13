@@ -5,8 +5,10 @@ CREATE TABLE image (
     image_data BLOB,
     filename TEXT,
     mimetype TEXT,
+    length INTEGER,
+    width INTEGER,
     thumbnail_small BLOB,
     thumbnail_medium BLOB,
-    metadata TEXT,
+    caption TEXT,
     processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
