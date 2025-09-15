@@ -1,8 +1,9 @@
+from datetime import datetime
 import io
 from flask import request, jsonify, send_file, Blueprint
 from flaskr import db
-from PIL import Image
 from transformers import pipeline
+from flaskr.tasks.process_images import process_images
 
 bp = Blueprint('images', __name__, url_prefix='/api')
 
@@ -18,46 +19,59 @@ def allowed_file(filename):
 # Now we will try 
 @bp.route('/images', methods = ['GET', 'POST'])
 def upload_file():
-
     if request.method == 'POST':
         if 'file' not in request.files:
             return jsonify({"error": "No file uploaded"}), 400
         file = request.files['file']
         if not file or not allowed_file(file.filename): 
             return jsonify({"error": "Invalid file type"}), 400
-        # insert file saving to db logic here
+        # insert file saving to db logic her
         try:
-            conn = db.get_db()
             file_bytes = file.read()
-            pil_image = Image.open(file)
-            length = pil_image.size[1]
-            width = pil_image.size[0]
-            captioner = pipeline("image-to-text", model="Salesforce/blip-image-captioning-large")
-            caption = captioner(pil_image)[0]['generated_text']
-            thumbnail_small = pil_image.copy()
-            thumbnail_small_bytes = io.BytesIO()
-            thumbnail_medium = pil_image.copy()
-            thumbnail_medium_bytes = io.BytesIO()
-            # processing small thumbnail
-            thumbnail_small.thumbnail((128, 128))
-            thumbnail_small.save(thumbnail_small_bytes, format=file.mimetype.split("/")[1])
-            thumbnail_small_bytes = thumbnail_small_bytes.getvalue()
-            # processing medium thumbnail
-            thumbnail_medium.thumbnail((320, 320))
-            thumbnail_medium.save(thumbnail_medium_bytes, format=file.mimetype.split("/")[1])
-            thumbnail_medium_bytes = thumbnail_medium_bytes.getvalue()
-
-            conn.execute("""INSERT INTO image (image_data, filename, mimetype
-                            , caption, length, width, thumbnail_small, thumbnail_medium) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                            """ 
-                            , (file_bytes, file.filename, file.mimetype \
-                        , caption, length, width, thumbnail_small_bytes, thumbnail_medium_bytes))
+            filename = file.filename
+            mimetype = file.mimetype
+            conn = db.get_db()
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO image (filename, mimetype, image_data, status, created_at) VALUES (?, ?, ?, ?, ?)",
+                (filename, mimetype, file_bytes, "processing", datetime.now().isoformat())
+            )
             conn.commit()
-
+            task = process_images.delay(file_bytes, filename, mimetype)
             return jsonify({'message': 'You have uploaded an image succesfully!'}), 201
         except Exception as e:
             return jsonify({'message': 'Unexpected server error!', 'details': str(e)}), 400
+    elif request.method == 'GET':
+        try:
+            conn = db.get_db()
+            cursor = conn.cursor()
+            cursor.execute("""
+                        SELECT filename, mimetype, caption, length
+                        , width, processed_at, status FROM image
+                        """)
+            rows = cursor.fetchall()
+            if not rows:
+                return jsonify({"message": "There are no photos processed or being processed right now!"}), 201
+            images = [
+                {
+                    "filename": row["filename"],
+                    "mimetype": row["mimetype"],
+                    "caption": row["caption"],
+                    "length": row["length"],
+                    "width": row["width"],
+                    "url": f"/api/images/{row['filename']}",
+                    "status": row["status"],
+                    "processed_at": row["processed_at"],
+                    "thumbnails": {
+                        "small": f"/api/images/{row['filename']}/thumbnail/small",
+                        "medium": f"/api/images/{row['filename']}/thumbnail/medium"
+                    }
+                }
+                for row in rows
+            ]
+            return jsonify(images), 201
+        except Exception as e:
+            return jsonify({"error": "An unexpected error occured while fetching processed images", "details": str(e)}), 500
     else:
         return jsonify({'message': 'Method not allowed'}), 405
 
@@ -76,9 +90,10 @@ def get_image(name):
     except Exception as e:
         return jsonify({'message': 'Unexpected server error!', 'details': str(e)}), 400
     
-@bp.route('/images/<name>/<thumbnail_size>')
-def get_thumbnail(name, thumbnail_size):
+@bp.route('/images/<name>/thumbnail/<size>')
+def get_thumbnail(name, size):
     try:
+        thumbnail_size = "thumbnail_" + size
         conn = db.get_db()
         cursor = conn.cursor()
         cursor.execute(f"SELECT {thumbnail_size}, mimetype, filename FROM image WHERE filename=?", (name,))
