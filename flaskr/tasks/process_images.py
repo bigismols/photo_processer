@@ -1,13 +1,14 @@
+from datetime import datetime
 import io
-from PIL import Image
 from flaskr import db, celery_app
+from PIL import Image
 from transformers import pipeline
 
-@celery_app.task
+@celery_app.task(name="flaskr.tasks.process_images.process_images")
 def process_images(file_bytes, filename, mimetype):
+    processed_at = datetime.now().isoformat()
     conn = db.get_db()
-    file_bytes = file.read()
-    pil_image = Image.open(file)
+    pil_image = Image.open(io.BytesIO(file_bytes))
     length = pil_image.size[1]
     width = pil_image.size[0]
     captioner = pipeline("image-to-text", model="Salesforce/blip-image-captioning-large")
@@ -25,10 +26,11 @@ def process_images(file_bytes, filename, mimetype):
     thumbnail_medium.save(thumbnail_medium_bytes, format=mimetype.split("/")[1])
     thumbnail_medium_bytes = thumbnail_medium_bytes.getvalue()
 
-    conn.execute("""INSERT INTO image (image_data, filename, mimetype
-                    , caption, length, width, thumbnail_small, thumbnail_medium) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """ 
-                    , (file_bytes, filename, mimetype \
-                , caption, length, width, thumbnail_small_bytes, thumbnail_medium_bytes))
+    conn.execute("""
+        UPDATE image
+        SET caption=?, length=?, width=?, thumbnail_small=?, thumbnail_medium=?, processed_at=?, status=?
+        WHERE filename=?
+        """, (caption, length, width, thumbnail_small_bytes, thumbnail_medium_bytes
+              , processed_at, "processed", filename))
     conn.commit()
+    print("DONE WITH PROCESSING")

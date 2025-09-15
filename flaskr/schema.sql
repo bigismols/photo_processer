@@ -10,5 +10,7 @@ CREATE TABLE image (
     thumbnail_small BLOB,
     thumbnail_medium BLOB,
     caption TEXT,
-    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP,
+    status TEXT DEFAULT 'processing'
 )

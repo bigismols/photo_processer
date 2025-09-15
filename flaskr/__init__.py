@@ -46,7 +46,12 @@ def create_app(test_config=None):
     from . import db
     db.init_app(app)
 
-    from .routes import images_bp
+    with app.app_context():
+        if not os.path.exists(app.config["DATABASE"]):
+            db.init_db()
+
+    from .routes import images_bp, stats_bp
     app.register_blueprint(images_bp)
+    app.register_blueprint(stats_bp)
 
     return app
