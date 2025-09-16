@@ -40,7 +40,7 @@ For _MacOS / Linux users_:
 # 2. How to use photo_processor?
 
 1. `.venv\Scripts\activate`
-2. `celery -A flaskr.make_celery.celey worker --loglevel=INFO --include=flaskr.tasks.process_images`. This starts our celery worker
+2. `celery -A flaskr.make_celery.celey worker --loglevel=INFO --include=flaskr.tasks.process_images --pool=solo`. This starts our celery worker
 3. After making sure docker desktop is running, `docker run -d -p 5672:5672 rabbitmq` for **first time** starting the RabbitMQ server. In subsequent instances of using photo_processor, `docker start fervent_payne` (while still making sure docker is running in the background). `docker ps` to verify our container is running
 4. `flask --app flaskr run --debug --host=127.0.0.1 --port=8000`
 5. Server is up and running! Send requests with tool of your choice (Postman, curl etc.)
