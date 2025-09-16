@@ -20,8 +20,14 @@ def get_stats():
         
         processing_count = status_counts.get('processing', 0)
         processed_count = status_counts.get('processed', 0)
+        failed_count     = status_counts.get('failed', 0)
+
+        total_finished = processed_count + failed_count
         
-        # Average processing time in seconds (processed only)
+        success_rate = (processed_count / total_finished) if total_finished > 0 else 0
+        failure_rate = (failed_count / total_finished) if total_finished > 0 else 0
+
+        # average processing time in seconds (processed only)
         cursor.execute("""
             SELECT AVG(
                 strftime('%s', processed_at) - strftime('%s', created_at)
@@ -35,8 +41,11 @@ def get_stats():
         return jsonify({
             "processing_count": processing_count,
             "processed_count": processed_count,
-            "average_processing_time_seconds": avg_processing_time
-        }), 200
+            "failed_count": failed_count,
+            "average_processing_time_seconds": avg_processing_time,
+            "success_rate": success_rate,
+            "failure_rate": failure_rate
+        }), 201
     
     except Exception as e:
         return jsonify({

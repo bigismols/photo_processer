@@ -23,7 +23,7 @@ def upload_file():
         if 'file' not in request.files:
             return jsonify({"error": "No file uploaded"}), 400
         file = request.files['file']
-        if not file or not allowed_file(file.filename): 
+        if file.filename == '' or not allowed_file(file.filename):
             return jsonify({"error": "Invalid file type"}), 400
         # insert file saving to db logic her
         try:
@@ -81,12 +81,25 @@ def get_image(name):
     try:
         conn = db.get_db()
         cursor = conn.cursor()
-        cursor.execute("SELECT image_data, mimetype, filename FROM image WHERE filename=?", (name,))
-        db_row = cursor.fetchone()
-        if db_row is None:
+        cursor.execute("""SELECT filename, mimetype, caption, length
+                        , width, processed_at, status FROM image WHERE filename=?""", (name,))
+        row = cursor.fetchone()
+        if row is None:
             return jsonify({"error": "Image not found"}), 404
-        return send_file(io.BytesIO(db_row['image_data']), mimetype=db_row['mimetype'] \
-                            , download_name=db_row['filename'], as_attachment=True)
+        return jsonify({
+                "filename": row["filename"],
+                "mimetype": row["mimetype"],
+                "caption": row["caption"],
+                "length": row["length"],
+                "width": row["width"],
+                "url": f"/api/images/{row['filename']}",
+                "status": row["status"],
+                "processed_at": row["processed_at"],
+                "thumbnails": {
+                    "small": f"/api/images/{row['filename']}/thumbnail/small",
+                    "medium": f"/api/images/{row['filename']}/thumbnail/medium"
+                    }
+                }), 201
     except Exception as e:
         return jsonify({'message': 'Unexpected server error!', 'details': str(e)}), 400
     
@@ -101,6 +114,6 @@ def get_thumbnail(name, size):
         if db_row is None:
             return jsonify({"error": "Image not found"}), 404
         return send_file(io.BytesIO(db_row[thumbnail_size]), mimetype=db_row['mimetype'] \
-                            , download_name=db_row['filename'], as_attachment=True)
+                            , download_name=db_row['filename'], as_attachment=True), 201
     except Exception as e:
         return jsonify({'message': 'Unexpected server error!', 'details': str(e)}), 400
