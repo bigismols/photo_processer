@@ -54,11 +54,11 @@ For _MacOS / Linux users_:
 Use case: Upload photos to be processsed (only .png and .jpg are allowed), and list all processed and processing photos  
 Methods allowed: POST, GET
 
-## /api/images/{id}
+## /api/images/{file_name}
 Use case: Gets the specific image detials, including URLs and thumbnails. id will be the name of the picture uploaded including the file extension  
 Methods allowed: GET
 
-## /api/images/{id}/thumbnail/{small, medium}
+## /api/images/{file_name}/thumbnail/{small, medium}
 Use case: Returns the small and medium thumbnail for each of the two different endpoints. Medium size is of 320px by 320px and small is 100px by 100px  
 Methods allowed: GET
 
