@@ -4,11 +4,12 @@ Creative name, I know. This is my internship submission for HTX. I picked the So
 I used Flask to create this API endpoint, and Celery (a dependency of Flask) to run help manage the task queue. Currently, the endpoints allow users to upload images which will be processed on the API server. The backend will create thumbnails of small and medium size, caption the image with a Hugging Face model, and extract the length, width of the photo in pixels. It then stores the processed images locally in an sqlite3 database.
 
 The following will be the contents of this document.
-1. Setup and Installation
-2. How to use photo_processor?
-3. API Endpoints
-4. Database Schema
-5. Future Improvements
+1. [Setup and Installation](#1-setup-and-installation)  
+2. [How to use photo_processor?](#2-how-to-use-photo_processor)  
+3. [API Endpoints](#3-api-endpoints)  
+4. [Testing](#4-testing)  
+5. [Database Schema](#5-database-schema)  
+6. [Future Improvements](#6-future-improvements) 
 
 # 1. Setup and Installation
 Before performing the setup, you need to have the following already installed:
@@ -35,14 +36,16 @@ For _MacOS / Linux users_:
 
   - `python3 -m venv .venv`
   - `. .venv/bin/activate`
-5. `pip install -r requirements.txt`  
+4. `pip install -r requirements.txt`  
 
 # 2. How to use photo_processor?
 
 1. `.venv\Scripts\activate`
-2. `celery -A flaskr.make_celery.celey worker --loglevel=INFO --include=flaskr.tasks.process_images --pool=solo`. This starts our celery worker
-3. After making sure docker desktop is running, `docker run -d -p 5672:5672 rabbitmq` for **first time** starting the RabbitMQ server. In subsequent instances of using photo_processor, `docker start fervent_payne` (while still making sure docker is running in the background). `docker ps` to verify our container is running
+2. After making sure docker desktop is running, `docker run -d -p 5672:5672 rabbitmq` for **first time** starting the RabbitMQ server. In subsequent instances of using photo_processor, `docker start [container_name]` (while still making sure docker is running in the background). `docker ps` to verify our container is runnin
+3. `celery -A flaskr.celery_worker.celery worker --loglevel=INFO --include=flaskr.tasks.process_images --pool=solo`. This starts our celery worker
 4. `flask --app flaskr run --debug --host=127.0.0.1 --port=8000`
+> [!NOTE]
+> Here, the port can be anything that your system does not block, may not be 8000 depending on your firewall configurations
 5. Server is up and running! Send requests with tool of your choice (Postman, curl etc.)
 
 # 3. API Endpoints
@@ -60,10 +63,16 @@ Use case: Returns the small and medium thumbnail for each of the two different e
 Methods allowed: GET
 
 ## /api/stats
-Use case: Returns processing statistics (average time to process, number of processed photos, number of processing photos)  
+Use case: Returns processing statistics (average time to process, number of processed photos, number of processing photos, failure count, failure rates, success rates)  
 Methods allowed: GET
 
-# 4. Database Schema
+# 4. Testing
+I used pytest to write the tests in /flaskr/tests. Pytest allows for unit testing and should be installed when running `pip install -r requirements.txt`.  
+To perform all the tests, do `pytest -v`. To perform a test of a specific file, do `pytest flaskr/test/[testname].py`. Ensure that you are in the root folder (photo_processor/)
+> [!IMPORTANT]
+> You **must** ensure you start your docker RabbitMQ server and your celery worker. If not the test will fail with unexpected connection errors.
+
+# 5. Database Schema
 There is only 1 table in the database. The `image` table stores uploaded images, their metadata, processing status, and thumbnails.
 
 | Column           | Type       | Description                                                                 |
@@ -81,7 +90,8 @@ There is only 1 table in the database. The `image` table stores uploaded images,
 | processed_at    | TIMESTAMP | Timestamp of when the image was processed (nullable until processed).       |
 | status          | TEXT      | Processing status of the image (`processing` by default, `processed` when done). |
 
-# 5. Future Improvements
+# 6. Future Improvements
 - More rigorous testing
 - Better error handling
   - More specific error messages
+- Better testing (negative cases, more exceptions)
